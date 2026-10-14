@@ -91,7 +91,7 @@ def default_config():
         "welcome": {
             "enabled": False,
             "channelId": None,
-            "background": None, # URL de l'image d'arrière-plan personnalisée
+            "background": None,
             "message": (
                 "🚨 **NOUVEAU RECRUE AU BLOCS / BCSO** 🚨\n\n"
                 "Bienvenue à toi, {user} !\n"
@@ -428,7 +428,6 @@ async def generate_welcome_card(member, bg_url):
     card = Image.new("RGBA", (width, height), (20, 24, 33, 255))
     draw = ImageDraw.Draw(card)
 
-    # 1. Chargement du fond (depuis l'URL ou fond par défaut BCSO)
     bg_loaded = False
     if bg_url:
         try:
@@ -444,19 +443,15 @@ async def generate_welcome_card(member, bg_url):
             pass
 
     if not bg_loaded:
-        # Fond stylisé BCSO par défaut (dégradé / teintes sombres et dorées)
         for x in range(width):
             color = int(20 + (x / width) * 15)
             draw.line([(x, 0), (x, height)], fill=(color, color + 5, color + 15, 255))
-        # Bordure dorée BCSO
         draw.rectangle([0, 0, width - 1, height - 1], outline=(201, 162, 39, 255), width=4)
 
-    # 2. Ajout d'un voile sombre translucide pour la lisibilité
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 140))
     card = Image.alpha_composite(card, overlay)
     draw = ImageDraw.Draw(card)
 
-    # 3. Téléchargement et intégration de l'avatar rond du membre
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(str(member.display_avatar.url)) as resp:
@@ -465,18 +460,15 @@ async def generate_welcome_card(member, bg_url):
                     avatar = Image.open(io.BytesIO(avatar_data)).convert("RGBA")
                     avatar = avatar.resize((160, 160))
 
-                    # Création d'un masque circulaire pour l'avatar
                     mask = Image.new("L", (160, 160), 0)
                     mask_draw = ImageDraw.Draw(mask)
                     mask_draw.ellipse((0, 0, 160, 160), fill=255)
 
-                    # Cercle doré autour de l'avatar
                     draw.ellipse((68, 68, 232, 232), fill=(201, 162, 39, 255))
                     card.paste(avatar, (74, 74), mask)
     except Exception:
         pass
 
-    # 4. Ajout du texte sur l'image
     try:
         font_title = ImageFont.truetype("arial.ttf", 36)
         font_sub = ImageFont.truetype("arial.ttf", 22)
@@ -484,11 +476,10 @@ async def generate_welcome_card(member, bg_url):
         font_title = ImageFont.load_default()
         font_sub = ImageFont.load_default()
 
-    draw.text((270, 90], "BIENVENUE AU BCSO", fill=(201, 162, 39, 255), font=font_title)
+    draw.text((270, 90), "BIENVENUE AU BCSO", fill=(201, 162, 39, 255), font=font_title)
     draw.text((270, 145), f"{member.name}#{member.discriminator}" if member.discriminator != "0" else member.name, fill=(255, 255, 255, 255), font=font_sub)
     draw.text((270, 180), f"Membre n° {member.guild.member_count}", fill=(180, 190, 200, 255), font=font_sub)
 
-    # Sauvegarde dans un buffer binaire
     buffer = io.BytesIO()
     card.save(buffer, format="PNG")
     buffer.seek(0)
@@ -971,8 +962,8 @@ class MyBot(discord.Client):
     async def on_ready(self):
         print(f"🤖 Connecté en tant que {self.user} (ID: {self.user.id})")
         
-        # SYNCHRONISATION INSTANTANÉE (Remplace l'ID par ton ID de serveur)
-        MY_GUILD = discord.Object(id=1557438305480605747) # ⚠️ Remplace par ton ID de serveur
+        # Remplace par l'ID de ton serveur Discord
+        MY_GUILD = discord.Object(id=123456789012345678) # ⚠️ Mets ton ID de serveur ici
         
         try:
             self.tree.copy_global_to(guild=MY_GUILD)
@@ -987,7 +978,6 @@ class MyBot(discord.Client):
         guild = member.guild
         g = get_guild(guild.id)
 
-        # 1. Gestion de la Blacklist (si le membre revient)
         if str(member.id) in g["blacklist"]:
             role = await get_blacklist_role(guild, create=False)
             if role:
@@ -997,17 +987,14 @@ class MyBot(discord.Client):
                 except discord.HTTPException:
                     pass
 
-        # 2. Gestion du Message de Bienvenue BCSO
         w = g["welcome"]
         if w["enabled"] and w["channelId"]:
             channel = guild.get_channel(w["channelId"])
             if channel:
                 try:
-                    # Génération de la carte image personnalisée
                     img_buffer = await generate_welcome_card(member, w["background"])
                     file = discord.File(fp=img_buffer, filename="welcome_bcso.png")
 
-                    # Formatage du texte de bienvenue
                     formatted_text = w["message"].replace("{user}", member.mention)
 
                     embed = discord.Embed(color=0xC9A227)
