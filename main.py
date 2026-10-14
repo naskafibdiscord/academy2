@@ -93,7 +93,7 @@ def default_config():
             "channelId": None,
             "background": None,
             "message": (
-                "🚨 **NOUVEAU RECRUE AU BLOCS / BCSO** 🚨\n\n"
+                "🚨 **NOUVELLE RECRUE AU BCSO** 🚨\n\n"
                 "Bienvenue à toi, {user} !\n"
                 "Tu viens de fouler le sol de Blaine County. Pense à consulter les règlements et à te rapprocher de l'administration pour débuter ton parcours.\n\n"
                 "*« To Protect and to Serve »*"
@@ -476,6 +476,7 @@ async def generate_welcome_card(member, bg_url):
         font_title = ImageFont.load_default()
         font_sub = ImageFont.load_default()
 
+    # Correction exacte de la syntaxe des coordonnées (270, 90)
     draw.text((270, 90), "BIENVENUE AU BCSO", fill=(201, 162, 39, 255), font=font_title)
     draw.text((270, 145), f"{member.name}#{member.discriminator}" if member.discriminator != "0" else member.name, fill=(255, 255, 255, 255), font=font_sub)
     draw.text((270, 180), f"Membre n° {member.guild.member_count}", fill=(180, 190, 200, 255), font=font_sub)
@@ -484,7 +485,6 @@ async def generate_welcome_card(member, bg_url):
     card.save(buffer, format="PNG")
     buffer.seek(0)
     return buffer
-
 
 # ---------- Réponses types : /reponse_config et /reponse ----------
 def render_response(text, member):
@@ -670,7 +670,6 @@ async def get_blacklist_role(guild, create=True):
     return role
 
 async def hide_channels(guild, role):
-    """Refuse « Voir le salon » au rôle blacklist sur tous les salons et catégories."""
     count = 0
     for channel in guild.channels:
         overwrite = channel.overwrites_for(role)
@@ -869,8 +868,9 @@ class TimeSelect(discord.ui.Select):
         super().__init__(placeholder="⏰ Choisissez l'heure du rendez-vous", options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         selected_time = self.values[0]
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"🚀 Envoi des MP en cours pour l'horaire : **{selected_time}**...",
             ephemeral=True
         )
@@ -962,17 +962,12 @@ class MyBot(discord.Client):
     async def on_ready(self):
         print(f"🤖 Connecté en tant que {self.user} (ID: {self.user.id})")
         
-        # Remplace par l'ID de ton serveur Discord
-        MY_GUILD = discord.Object(id=123456789012345678) # ⚠️ Mets ton ID de serveur ici
-        
+        # Synchronisation globale des commandes auprès de Discord
         try:
-            self.tree.copy_global_to(guild=MY_GUILD)
-            await self.tree.sync(guild=MY_GUILD)
-            print("✅ Commandes slash synchronisées instantanément sur le serveur de test.")
-        except Exception as e:
-            print(f"⚠️ Erreur lors de la synchronisation de la guilde : {e}")
             await self.tree.sync()
-            print("✅ Commandes slash synchronisées globalement.")
+            print("✅ Commandes slash synchronisées globalement avec succès.")
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la synchronisation : {e}")
 
     async def on_member_join(self, member):
         guild = member.guild
